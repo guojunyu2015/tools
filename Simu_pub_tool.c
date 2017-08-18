@@ -1,7 +1,7 @@
 /*****************************************************************
  *
  * 文件名称    Simu_pub_server.c
- * 摘    要    : 公共socket模拟器
+ * 摘    要    : 中间业务平台公共socket模拟器
  *
  * 当前版本    ：1.0
  * 作    者    ： guojy
@@ -20,12 +20,13 @@
 #include <stdarg.h>
 #include <time.h>
 #include <math.h>
+#include <errno.h>
 
 void bsWPubDebug(char *aLog_file_name,char *fmt,...);
 int nAnalyseCfgFilePubDeal(char *aConfig_type,char *aServ_name,char *aOut_str);
 int nListCfgFileServType(char *aProg_nm);
 int nGetServerStat(char *aProg_nm,char *aServ_nm,long *lPid);
-int nConvertStrToHex(char *aSrc_str,int *iHex_val);
+int nConvertStrToHex(char *aSrc_str,char *iHex_val);
 int nFilterStrHexNum(char *aIn_str,char *aOut_str,int *iOut_len);
 typedef struct
 {
@@ -202,6 +203,7 @@ int main(int argc,char **argv)
 			sWPubDebug("get resp info fail");
 			continue;
 		}
+		sWPubDebug("aStr_trmp = [%s]",aStr_tmp);
 		/*判断是否存在十六进制值*/
 		memset(stResp_dtl.aResp_info,0x00,sizeof(stResp_dtl.aResp_info));
 		nFilterStrHexNum(aStr_tmp,stResp_dtl.aResp_info,&iResp_len);
@@ -213,8 +215,13 @@ int main(int argc,char **argv)
 		ret = nAnalyseCfgFilePubDeal(aDelay_time_cfg,aSearch_serv_name,aStr_tmp);
 		if(ret == 0)	/*如果配置了延迟时间*/
 		{
+			sWPubDebug("该交易配置了响应延迟时间,延迟时间为:[%s]秒",aStr_tmp);
 			lDelay_time = atol(aStr_tmp);
 			sleep(lDelay_time);
+		}
+		else
+		{
+			sWPubDebug("该交易没有配置响应延迟时间,直接应答!!");
 		}
 		
 		if(send(nClientSocketId, stResp_dtl.aResp_info, iResp_len, 0) < 0)
@@ -222,7 +229,7 @@ int main(int argc,char **argv)
 			sWPubDebug("send resp info fail\n");
 			continue;
 		}
-		sWPubDebug("resp info:[%s]",aStr_tmp);
+		sWPubDebug("resp info:[%s]",stResp_dtl.aResp_info);
 		
 		close(nClientSocketId);
 		sWPubDebug("**************connection complete**************\n\n");
@@ -256,11 +263,12 @@ int nAnalyseCfgFilePubDeal(char *aConfig_type,char *aServ_name,char *aOut_str)
 	{
 		memset (aStr_tmp,0x00,sizeof(aStr_tmp));
 		aTmp = NULL;
-		fgets(aStr_tmp,4096,fp);
+		aTmp = fgets(aStr_tmp,4096,fp);
+
 		aTmp = strchr(aStr_tmp,'\n');
 		if(aTmp)
 			aStr_tmp[strlen(aStr_tmp) - 1] = '\0';
-					
+		
 		if (aStr_tmp[0] == '#' || strlen(aStr_tmp) == 0)
 			continue;
 		
@@ -433,7 +441,7 @@ void bsWPubDebug(char *aLog_file_name,char *fmt,...)
 	FILE *fp;
 	char aFile_name[64];
 	va_list ap;
-	char aStr_tmp[256];
+	char aStr_tmp[4096];
 	char aTime_stamp[24+1];		/*时间戳*/
 	struct  tm *systime;
     time_t  t;
@@ -468,7 +476,7 @@ void bsWPubDebug(char *aLog_file_name,char *fmt,...)
  ** 参数含义:   
  ** 返回值:
  ***********************************************************/
-int nConvertStrToHex(char *aSrc_str,int *iHex_val) 
+int nConvertStrToHex(char *aSrc_str,char *iHex_val) 
 {
 	int iTmp,i,iPow_num;
 	
@@ -495,8 +503,9 @@ int nFilterStrHexNum(char *aIn_str,char *aOut_str,int *iOut_len)
 {
 	char *pStart,*pEnd,*pTmp;
 	char aStr_tmp[1024];
-	int i,iLen = 0,iTmp;
+	int i,iLen = 0;
 	int iNum_idx = 0;
+	char iTmp;
 	pStart = aIn_str;
 	
 	while((pEnd = strchr(pStart,'{')) != NULL)
@@ -505,7 +514,8 @@ int nFilterStrHexNum(char *aIn_str,char *aOut_str,int *iOut_len)
 		memcpy(aStr_tmp,pStart,pEnd - pStart);
 		iNum_idx = pEnd - aIn_str;
 		iLen += strlen(aStr_tmp);
-		memcpy(aOut_str + iLen,aStr_tmp,pEnd - pStart);
+//		memcpy(aOut_str + iLen,aStr_tmp,pEnd - pStart);
+		memcpy(aOut_str,aStr_tmp,pEnd - pStart);
 		
 		pStart = pEnd + 1;
 		pEnd = strchr(pStart,'}');
@@ -518,6 +528,7 @@ int nFilterStrHexNum(char *aIn_str,char *aOut_str,int *iOut_len)
 		pStart = pEnd + 1;
 	}
 	memcpy(aOut_str+iLen,pStart,aIn_str + strlen(aIn_str) - pStart);
+	
 	iLen += (aIn_str + strlen(aIn_str) - pStart);
 	*iOut_len = iLen;
 	return 0;
