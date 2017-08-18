@@ -26,7 +26,7 @@ void bsWPubDebug(char *aLog_file_name,char *fmt,...);
 int nAnalyseCfgFilePubDeal(char *aConfig_type,char *aServ_name,char *aOut_str);
 int nListCfgFileServType(char *aProg_nm);
 int nGetServerStat(char *aProg_nm,char *aServ_nm,long *lPid);
-int nConvertStrToHex(char *aSrc_str,char *iHex_val);
+int nConvertStrToHex(char *aSrc_str,int *iHex_val);
 int nFilterStrHexNum(char *aIn_str,char *aOut_str,int *iOut_len);
 typedef struct
 {
@@ -476,7 +476,7 @@ void bsWPubDebug(char *aLog_file_name,char *fmt,...)
  ** 参数含义:   
  ** 返回值:
  ***********************************************************/
-int nConvertStrToHex(char *aSrc_str,char *iHex_val) 
+int nConvertStrToHex(char *aSrc_str,int *iHex_val) 
 {
 	int iTmp,i,iPow_num;
 	
@@ -505,7 +505,7 @@ int nFilterStrHexNum(char *aIn_str,char *aOut_str,int *iOut_len)
 	char aStr_tmp[1024];
 	int i,iLen = 0;
 	int iNum_idx = 0;
-	char iTmp;
+	int iTmp;
 	pStart = aIn_str;
 	
 	while((pEnd = strchr(pStart,'{')) != NULL)
@@ -513,9 +513,8 @@ int nFilterStrHexNum(char *aIn_str,char *aOut_str,int *iOut_len)
 		memset(aStr_tmp,0x00,sizeof(aStr_tmp));
 		memcpy(aStr_tmp,pStart,pEnd - pStart);
 		iNum_idx = pEnd - aIn_str;
+		memcpy(aOut_str + iLen,aStr_tmp,pEnd - pStart);
 		iLen += strlen(aStr_tmp);
-//		memcpy(aOut_str + iLen,aStr_tmp,pEnd - pStart);
-		memcpy(aOut_str,aStr_tmp,pEnd - pStart);
 		
 		pStart = pEnd + 1;
 		pEnd = strchr(pStart,'}');
@@ -533,4 +532,3 @@ int nFilterStrHexNum(char *aIn_str,char *aOut_str,int *iOut_len)
 	*iOut_len = iLen;
 	return 0;
 }
-
